@@ -5,11 +5,7 @@ import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { configDefaults, defineConfig } from 'vitest/config';
 
-/**
- * GitHub Pages serves the app from https://hashimsaffarini.github.io/Early-Step/, so production
- * assets live under `/Early-Step/`. Development (`npm run dev`) and tests stay at `/`.
- * `BASE_PATH` overrides the production base (e.g. `BASE_PATH=/ npm run build` for a root host).
- */
+
 const PAGES_BASE_PATH = '/EarlySteps-Frontend-/';
 
 export default defineConfig(({ command, isPreview }) => ({
