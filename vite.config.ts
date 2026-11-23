@@ -10,7 +10,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
  * assets live under `/Early-Step/`. Development (`npm run dev`) and tests stay at `/`.
  * `BASE_PATH` overrides the production base (e.g. `BASE_PATH=/ npm run build` for a root host).
  */
-const PAGES_BASE_PATH = '/Early-Step/';
+const PAGES_BASE_PATH = '/EarlySteps-Frontend-/';
 
 export default defineConfig(({ command, isPreview }) => ({
   // `vite preview` serves the production build, so it uses the same base as `vite build`.
