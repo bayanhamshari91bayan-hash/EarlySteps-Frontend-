@@ -1,0 +1,739 @@
+# Architecture Decision Log
+
+New decisions are appended. Superseded decisions are marked, not deleted.
+
+## ADR-001 — React + TypeScript + Vite
+
+### Status
+
+Accepted
+
+### Context
+
+Early Step is a client-rendered, authenticated web app backed by an external API. SEO and
+server rendering are not requirements.
+
+### Decision
+
+Use React 19, TypeScript (strict), and Vite as the build tool. No Next.js.
+
+### Consequences
+
+Fast dev server and simple static deployment. Routing, data fetching, and auth are handled in
+the client.
+
+## ADR-002 — Feature-oriented architecture with one-way dependencies
+
+### Status
+
+Accepted
+
+### Context
+
+The product has many domains (children, assessments, plans, chat, ...) and five roles. A
+type-based structure (all components together, all hooks together) degrades as it grows.
+
+### Decision
+
+Group code by domain in `src/features/<domain>/`. Dependencies flow
+`app → features → shared layers`. Features don't import each other and expose a public
+`index.ts`. Subfolders are created only when needed.
+
+### Consequences
+
+Clear ownership and boundaries. Cross-feature composition must happen in `app/` or via shared
+layers, which requires some discipline (to be tooling-enforced later if needed).
+
+## ADR-003 — TanStack Query for server state; Zustand only for justified client state
+
+### Status
+
+Accepted
+
+### Context
+
+Most state will be server data. Duplicating it in a global store causes staleness bugs.
+
+### Decision
+
+TanStack Query owns server state. React state owns local UI state. Zustand is installed but
+used only for genuinely global client state (e.g. session), each use recorded here. No Redux.
+
+### Consequences
+
+Less boilerplate; caching/invalidation handled consistently. Developers must resist putting
+API data in Zustand.
+
+## ADR-004 — Axios HTTP layer with normalized `AppError` and injected auth hooks
+
+### Status
+
+Accepted
+
+### Context
+
+The API contract is not yet known, but every feature needs consistent auth headers, error
+handling, and 401 behavior.
+
+### Decision
+
+One Axios instance (`services/http/httpClient.ts`). Interceptors resolve the base URL, attach
+the bearer token, normalize all failures into `AppError`, and call an `onUnauthorized` hook.
+Auth is injected with `registerHttpAuthHooks()` so `services/` does not depend on
+`features/auth`. Backend error-body parsing is a TBD stub until the API is documented.
+TanStack Query's `defaultError` type is registered as `AppError`.
+
+### Consequences
+
+Components see one error type. The token scheme, refresh flow, and error body parsing must be
+completed when the API docs arrive.
+
+## ADR-005 — Arabic-only RTL, no localization library
+
+### Status
+
+Accepted
+
+### Context
+
+The product is Arabic only; no other languages are planned.
+
+### Decision
+
+`<html lang="ar" dir="rtl">` globally, CSS logical properties, Arabic strings written
+directly in components. No i18n library or language switcher. Backend English enum values are
+mapped to Arabic labels via constant maps (e.g. `ROLE_LABELS`).
+
+### Consequences
+
+Simpler code. Adding another language later would require extracting strings (accepted risk).
+
+## ADR-006 — React Router 7 data router with centralized paths
+
+### Status
+
+Accepted
+
+### Context
+
+Five role namespaces, public auth routes, and child activity routes need consistent layouts
+and guards.
+
+### Decision
+
+Use `react-router` v7 in data-router mode (`createBrowserRouter`). One route tree in
+`app/router/routes.tsx`; features export route objects; paths are constants in
+`app/router/paths.ts`.
+
+### Consequences
+
+Route errors and lazy loading are supported natively. Adding a route requires touching
+`app/router` — intentional, to keep the tree in one place.
+
+## ADR-007 — React Hook Form + Zod, schemas colocated with features
+
+### Status
+
+Accepted
+
+### Decision
+
+Forms use React Hook Form with `@hookform/resolvers/zod`. Schemas live in
+`features/<x>/schemas/`. Server field errors (`AppError.fieldErrors`) are mapped with
+`setError`.
+
+### Consequences
+
+Consistent validation and typed form values. Schemas must mirror backend validation rules
+from the API docs.
+
+## ADR-008 — Plain CSS with design tokens; no UI library yet
+
+### Status
+
+Accepted
+
+### Context
+
+The visual design must match the existing Replit app, which hasn't been inspected yet.
+
+### Decision
+
+Use plain CSS with custom-property tokens in `src/styles/tokens.css` (neutral placeholders).
+No UI kit or CSS framework until the Replit design is reviewed.
+
+### Consequences
+
+Nothing to undo when the real design arrives. The styling approach (plain CSS, CSS modules,
+or a framework) may be revisited after inspecting Replit — record a new ADR if so.
+
+## ADR-009 — Vitest + React Testing Library
+
+### Status
+
+Accepted
+
+### Decision
+
+Vitest (shares the Vite config, jsdom environment) with React Testing Library and jest-dom.
+E2E tooling is deferred until justified.
+
+### Consequences
+
+Fast tests with no separate Babel/Jest configuration.
+
+## ADR-010 — Tool versions compatible with Node 20.17
+
+### Status
+
+Accepted
+
+### Context
+
+The development machine runs Node 20.17.0. The latest majors of Vite (8), @vitejs/plugin-react
+(5+), ESLint (10), and jsdom (27+) require Node ≥ 20.19 or 22.
+
+### Decision
+
+Pin to the newest majors that support Node 20.17: Vite 6, @vitejs/plugin-react 4, ESLint 9,
+jsdom 26, TypeScript 5.9 (typescript-eslint doesn't support TypeScript 7 yet), Vitest 4.
+`.nvmrc` = 20.17.0.
+
+### Consequences
+
+Everything works on the current machine. Upgrading Node to 22 LTS would allow moving to the
+latest tool majors — do it as a separate, validated change.
+
+## ADR-011 — Environment config in `src/config`, validated lazily with Zod
+
+### Status
+
+Accepted
+
+### Context
+
+The setup request suggested `src/app/config/env.ts`. The HTTP layer (`services/`) needs the
+env, and shared layers must not import from `app/` (ADR-002).
+
+### Decision
+
+Place `env.ts` in `src/config/`. Validate `import.meta.env` with Zod on first access
+(`getEnv()`), not at startup, so the shell runs before the API URL is known.
+
+### Consequences
+
+Dependency direction stays clean. A misconfigured env surfaces on the first API request, with a
+clear message.
+
+## ADR-012 — ESLint strict type-checked + Prettier
+
+### Status
+
+Accepted
+
+### Decision
+
+ESLint flat config with `typescript-eslint` `strictTypeChecked` + `stylisticTypeChecked`,
+React Hooks and React Refresh rules, `no-explicit-any`, type-only imports, and a ban on
+`../../` imports. Prettier handles formatting (`eslint-config-prettier` disables conflicting
+rules). Lint runs with `--max-warnings=0`.
+
+### Consequences
+
+Strict baseline from day one. Occasionally verbose code to satisfy type-aware rules.
+
+## ADR-013 — Replit is a visual reference only; the Apidog API is the contract
+
+### Status
+
+Accepted
+
+### Context
+
+Discovery (2026-09-28) showed the Replit project is a full-stack prototype with its own Express +
+PostgreSQL backend (session cookies, integer ids, English enums, OpenAI evaluation) that never
+calls the real Early Step API. Its data model, permissions and several features (rewards, AI
+risk scoring, notifications, IEP, difficulty, dark mode, EN toggle) have no counterpart in the
+real API.
+
+### Decision
+
+Use Replit only for visual design, layout and UX patterns. Take all contracts, enums,
+permissions and capabilities from the Apidog API (verified live when possible). Replit-only
+features are out of scope unless the product owner requests them and the backend supports them.
+
+### Consequences
+
+No Replit data-layer code is migrated. Some Replit screens (AI report builder, rewards, IEP) will
+not exist in the new app. Conflicts are tracked in `GAP_ANALYSIS.md`.
+
+## ADR-014 — Feature boundaries after discovery
+
+### Status
+
+Accepted
+
+### Context
+
+The foundation listed provisional features (`categories`, `activities`, `games`, `progress`
+separately). The API groups categories, activities, questions, options and initial-assessment
+composition under admin content management, and exposes progress only as training-plan results.
+
+### Decision
+
+Features: `auth`, `children`, `users`, `content`, `assessments`, `training-plans`, `feedback`,
+`reports`, `chat`, `dashboards`. Question renderers shared by assessments and training plans
+live in `src/components/question-players/` (presentational, no API; implemented as `src/components/players/`, ADR-019). Details in
+`ARCHITECTURE.md`.
+
+### Consequences
+
+Fewer, larger domains that mirror the API. Route path constants will move to
+`src/constants/routes.ts` when the first feature needs cross-area links (separate ADR).
+
+## ADR-015 — Role-namespaced routes
+
+### Status
+
+Accepted
+
+### Context
+
+The API is partitioned by role (`/Parent`, `/Teacher`, `/specialist`, `/Admin`, `/SuperAdmin`),
+each with its own dashboard/children endpoints. Replit's flat routes with in-page role branching
+caused redirect loops and hooks-order bugs.
+
+### Decision
+
+Use `/parent/*`, `/teacher/*`, `/specialist/*`, `/admin/*`, `/super-admin/*`, plus public auth
+routes and a full-screen `/play/*` area. Shared screens (chat, change password) reuse the same
+page component in each namespace. See `ROUTING.md`.
+
+### Consequences
+
+One `RoleGuard` per subtree; unambiguous URLs; some route-table repetition for shared pages.
+
+## ADR-016 — Visual direction decisions
+
+### Status
+
+Accepted (product owner, 2026-09-28)
+
+### Context
+
+The Replit audit (`REPLIT_AUDIT.md`, `DESIGN_SYSTEM.md`) surfaced open visual questions: product
+name, dark mode, which of Replit's child-facing styles to follow, and failing contrast of the brand
+blue.
+
+### Decision
+
+- Product name: **Early Step**.
+- Dark mode: **not in scope** for now; light theme only (tokens stay dark-ready).
+- Child-facing UI: the **light assessment style**; the dark test-player style is not used.
+- Contrast: `#0DA2E7` stays the brand/decorative blue; `#0A7AAE` for filled buttons and important
+  text; dark text on amber backgrounds.
+- Preserve Cairo (body), Tajawal (headings), warm cream background, rounded cards, gradient
+  banners, playful feedback, stars/sounds/confetti where appropriate.
+- Fix Replit's RTL drawer, dropdown positioning, mobile chat, tiny text, labels, colour-only
+  feedback, reduced motion, broken decorative classes, fabricated statistics.
+
+### Consequences
+
+One light visual dialect. The UI foundation stage applies these tokens; no theme toggle is built.
+
+## ADR-017 — UI foundation implementation choices
+
+### Status
+
+Accepted
+
+### Context
+
+The UI foundation stage applies the Replit-derived design system (ADR-016) to shared layouts and
+core components without building product features.
+
+### Decision
+
+- **Styling:** plain CSS with design tokens (`src/styles/tokens.css`) + **CSS Modules** per
+  component (built into Vite; no CSS framework, no UI kit). Only logical properties; no raw
+  colours outside the tokens file.
+- **Fonts:** self-hosted via Fontsource — `@fontsource-variable/cairo` (body) and
+  `@fontsource/tajawal` 700/800/900 (headings). No third-party font requests (children's
+  platform, privacy, offline reliability).
+- **Icons:** `lucide-react` (same icon family as Replit, tree-shaken).
+- **Dialogs / drawer:** native `<dialog>` + `showModal()` for focus trapping, inert background and
+  Escape handling — no dialog library.
+- **Animation:** CSS transitions/keyframes only (no framer-motion); the global
+  `prefers-reduced-motion` override disables them.
+- **Dev UI preview:** `/ui-preview` routes are lazy-loaded and registered only when
+  `import.meta.env.DEV` is true, so they never ship to production.
+- **Testing:** `@testing-library/user-event` added for interaction tests; jsdom lacks
+  `HTMLDialogElement.showModal`, so `src/test/setup.ts` provides a minimal stand-in.
+
+### Consequences
+
+Small dependency footprint; components are portable and token-driven. Breakpoints are written
+literally in media queries (CSS variables are not allowed there) and documented at the top of
+`tokens.css`.
+
+## ADR-018 — Shared route constants and lazy auth routes
+
+### Status
+
+Accepted
+
+### Context
+
+The auth and landing features link to each other's routes, but features must not import `app/`.
+The auth screens also pulled React Hook Form + Zod into the main bundle (> 500 kB warning).
+
+### Decision
+
+- Route constants move from `app/router/paths.ts` to `src/constants/routes.ts`.
+- `/login`, `/register`, `/forgot-password`, `/reset-password` use React Router `lazy`; the landing
+  page stays eager for first paint.
+
+### Consequences
+
+Features stay independent of `app/`. Main bundle ≈ 370 kB, auth chunk ≈ 144 kB loaded on demand.
+
+## ADR-019 — Complete Replit UI migration: role areas, shared players, mock roster
+
+### Status
+
+Accepted (2026-09-29)
+
+### Context
+
+The remaining Replit screens (tests, games, initial assessment, reports, messages, notifications,
+education plans, teacher/specialist/admin dashboards, super admin panel) are migrated as UI only,
+before backend integration. In Replit most screens are shared by four roles at flat URLs
+(`/children`, `/tests`, …) with role branching inside pages. Authentication does not exist yet.
+
+### Decision
+
+- **Role areas.** Each role gets its own namespace (ADR-015): `/parent`, `/teacher`, `/specialist`,
+  `/admin` share one set of screens built by `buildAreaRoute(role)` in `app/router/areaRoutes.tsx`
+  (dashboard, children, child profile, education plans, tests, games, reports, report detail,
+  messages; create report only for Specialist/Admin). Full-screen child pages (test player, game
+  player, initial assessment) live in the same namespace but outside the sidebar shell. The Super
+  Admin has a single panel at `/super-admin`.
+- **`useRoleArea()`** (`src/hooks/useRoleArea.ts`) exposes the current role and its path builders
+  (`getAreaPaths` in `src/constants/routes.ts`) so shared pages build role-scoped links and vary
+  role-specific UI. It is display/navigation only — **not** access control. Areas remain
+  **temporarily unguarded** for UI development (mock session users in `app/dev/mockSessions.ts`).
+- **Shared players** in `src/components/players/` (PlayerShell, PlayerBanner, StartScreen,
+  AnswerTile, QuestionProgress, FeedbackMessage, ResultPanel, StarRating, StatPill, SoundToggle +
+  `useSoundEffects`, Confetti) are used by games, tests and the assessment — presentational, no
+  data access. `CategoryTile` + category gradient tokens (text-safe) are shared UI; category keys
+  live in `src/constants/activityCategories.ts`.
+- **`features/activities`** owns the child-facing catalogues and players (tests + games). Admin
+  content CRUD stays planned in `features/content` (ADR-014).
+- **One light visual language.** Replit's dark test player and dark super-admin app are rebuilt in
+  the Early Step light style (ADR-016).
+- **Mock data** stays per feature (features never import each other) but follows one documented
+  roster (`docs/MOCK_DATA.md`) so ids, names and facts agree across screens.
+- **Excluded or neutralized:** AI report generation and "AI" branding, risk levels/probabilities,
+  percentage scores, clinical result claims, rewards (XP, levels, streaks, badges, leaderboard),
+  countdown timers for children, PDF generation, real messaging (no sockets).
+
+### Consequences
+
+Every Replit screen has a route in each role that can use it, with no dead links. When auth
+arrives, guards wrap each area route and `useRoleArea` keeps working; the mock sessions and
+mock files are deleted as screens are connected to the API.
+
+## ADR-020 — Backend integration approach
+
+### Status
+
+Accepted (2026-10-06)
+
+### Context
+
+The live backend (`https://earlystep22.runasp.net/api/`) publishes a Swagger document whose paths
+are all under `/api/` with consistent casing, but it documents response schemas only for chat. No
+demo account could sign in, and the Admin controller was found unauthenticated (see
+`SECURITY.md`); live testing is paused at the user's request.
+
+### Decision
+
+- **Contract source:** the Swagger snapshot (`docs/api/swagger.json`). Apidog examples fill gaps;
+  every inferred response shape is parsed leniently with Zod and marked NOT LIVE-VERIFIED.
+- **Paths:** relative to `VITE_API_BASE_URL` (which must end with `/api/`) — no duplicated prefix.
+- **Session:** shared Zustand store (`services/session`), sessionStorage by default, localStorage
+  with "remember me"; login response parsed leniently (token + role from body or JWT claims,
+  unknown role → refused). No refresh/logout/me endpoints → local logout, clear cache on 401.
+- **Roles:** one normalization module; observed Arabic values mapped; unknown → no access.
+- **Query keys:** one central factory module; cross-feature reads (children lists, child reports,
+  child plan activities) live in shared `services/api` + `hooks/api`.
+- **Mocked HTTP:** MSW (`msw@2`, dev dependency) for all tests (unhandled requests fail) and an
+  opt-in development mock mode (`VITE_USE_MOCKS=true`, dev only, banner shown, worker removed from
+  production builds) so the integrated UI can be reviewed without backend accounts.
+- **Honesty:** missing backend capabilities are BLOCKED BY BACKEND in the UI and docs — no fake
+  persistence, results, pickers or history.
+
+### Consequences
+
+Every integration is testable deterministically; going live requires only working accounts to
+verify the lenient schemas (`BACKEND_INTEGRATION_STATUS.md` lists each one).
+
+## ADR-021 — Session user from `GET Auth/me`
+
+### Status
+
+Accepted (2026-10-14)
+
+### Context
+
+The backend added `GET Auth/me` (`{ id, fullName, email, roles }`). The session used to store the
+login response's user (name, email, role) in web storage and trust it after reloads.
+
+### Decision
+
+Login posts `Auth/login` for the token, then calls `Auth/me` (with the new token as an explicit
+header) for the user. Only `{ accessToken, expiresAt }` is stored. After a reload the store holds a
+`pending` token; the route guards render `SessionRestore`, which calls `Auth/me` and restores the
+session (401 → signed out, cache cleared; other errors → retry). The request interceptor never
+overrides an explicit `Authorization` header.
+
+### Consequences
+
+One source of truth for who is signed in and for the routing role (the server's current role); no
+personal data in web storage; one extra request on login and on each reload; protected pages wait
+for `Auth/me` before rendering.
+
+## ADR-022 — Staff-only assessment results and kept result history
+
+### Status
+
+Accepted (2026-10-14, business-rule clarifications from the backend developer)
+
+### Context
+
+Live, the Parent gets 403 on `GET initial-assessment/{childId}/result`, and deleting a child or
+removing a plan activity with saved results fails. The backend developer clarified that both are
+intended.
+
+### Decision
+
+The Result endpoint is staff-only: the Parent UI never calls it, and the parent's assessment ends
+with a confirmation (no score; `complete` only completes). Records with results are kept: the
+parent's delete action is disabled for a child whose plan has a completed activity, and played
+plan activities have no remove action. No frontend workaround is added for backend errors.
+
+### Consequences
+
+Parents see their child's progress through the specialist (reports, plan), not raw assessment
+scores. The empty 500 on such deletes remains a small backend improvement (descriptive 400/409).
+
+## ADR-023 — Zero dummy data in production runtime
+
+### Status
+
+Accepted (2026-10-15, production-readiness audit — `PRODUCTION_DATA_AUDIT.md`)
+
+### Context
+
+Mock data was already isolated behind MSW (tests and development mock mode), but the sidebar
+still offered static "Tests" and "Games" catalogs (frontend demo content whose results are never
+saved), and a few screens turned missing or failed data into numbers (0, three stars, "not
+assigned", client-side counts).
+
+### Decision
+
+- Production shows only backend data or values derived from it. A value the server did not send
+  is hidden, never replaced by a default; a failed load shows an error with retry.
+- The static practice catalogs exist only in development mock mode (`showPracticeCatalogs`,
+  same condition as `isMockMode()`), so production builds contain none of their content. The game
+  components stay as engines.
+- Server aggregates are preferred over client counting (Super Admin `usersByRole`).
+- Fields known to be unreliable live (`isInInitialAssessment`, specialist `progressPercentage`)
+  are not displayed.
+
+### Consequences
+
+Parents, teachers and staff no longer see a second activity list next to the training plan.
+The child plays games only through plan activities until the backend defines game content that
+the engines can render.
+
+## ADR-024 — GitHub Pages hosting with hash routing in production
+
+### Status
+
+Accepted (2026-10-15)
+
+### Context
+
+The frontend is hosted on GitHub Pages at `https://hashimsaffarini.github.io/Early-Step/`.
+GitHub Pages serves static files from a sub-path and has no SPA rewrites, so a refreshed or shared
+`/Early-Step/parent/dashboard` would return 404.
+
+### Decision
+
+- Vite `base` is `/Early-Step/` for `vite build` / `vite preview` and `/` for development and tests.
+- Production builds use `createHashRouter` (`/Early-Step/#/parent/dashboard`); development keeps
+  `createBrowserRouter`. Routes, guards and links are unchanged.
+- In-page anchors (skip link, landing scroll hint) scroll/focus in JavaScript instead of changing
+  the hash.
+- Deployment is the official GitHub Actions Pages flow on pushes to `main` (no `gh-pages` branch).
+
+### Consequences
+
+Every URL works on refresh and as a direct link without a 404 fallback page. URLs carry `#/`,
+which is acceptable for the project. Moving to a host with rewrites later only needs the browser
+router and `BASE_PATH=/`.
+
+## ADR-025 — Client revisions 2026-10: plan summary, teacher plan page, admin editors
+
+### Status
+
+Accepted (2026-10-16, `CLIENT_REVISIONS_2026-10.md`)
+
+### Decision
+
+- One shared plan summary (`components/shared/PlanSummary`, `services/api/planSummary.ts`) for
+  every plan view: counts and completion % derived from the real rows, the server `progress` when
+  sent, answer totals and mean score only when the rows carry them.
+- The teacher's child page is an app-level page (`app/pages/TeacherChildPage`) composing the
+  training-plans panel and the feedback notes section, so features keep not importing each other.
+  Old teacher notes / plan URLs redirect to it.
+- Correct answers are edited per question and saved option by option in a fixed order (clear the
+  old SingleChoice answer first; send display positions as `Order`), as the live API requires.
+- The initial-assessment admin reads membership from `initial-assessment/categories` and lists every
+  category from `Admin/categories`.
+
+### Consequences
+
+Several backend gaps stay visible instead of being hidden: unserved uploads, unstored option
+order, no list of assessment questions (`BACKEND_REQUESTS.md`).
+
+## ADR-026 — Game engines in the shared layer, template in the activity `Slug`
+
+**Date:** 2026-10-21 · **Status:** Accepted
+
+**Context.** The client expects real educational games. Game activities exist in the backend
+(`type: game`) but carry no field naming an interaction style except the Admin-entered `Slug`.
+
+**Decision.** Four game engines live in `src/components/games` (shared layer): both the Admin
+content feature (template selector) and the activities player need the registry, and features never
+import each other. The template is saved in the activity's existing `Slug`
+(`template` or `template-suffix`); nothing is matched by GUID or title. The player picks the engine
+from the plan activity's `slug` when the server sends it, and otherwise keeps the generic player.
+
+**Consequences.** No backend contract change for saving; reading needs the backend to return `slug`
+on the Training Plan activity responses (`BACKEND_REQUESTS.md` #9). Until then live games use the
+generic player. Details: `docs/GAME_ENGINE.md`.
+
+## ADR-027 — Part 4 child files and visual-search games
+
+**Date:** 2026-10-28 · **Status:** Accepted by the client request
+
+The part 4 document replaces per-category assessment starts with one all-category start. Specialist
+child files use initial-assessment / plan tabs and an inline editor over the report's existing three
+fields. Teacher history uses a shared activity table; app-level composition keeps feature boundaries.
+Initial results are shown by their actual API category grouping, with no invented activity results.
+
+A fifth shared game engine, `spot-it`, presents real options as a visual-search board. Games without
+usable template metadata use this default (Sequence still uses the ordering engine), replacing the
+previous generic fallback in ADR-026. Editable authoring drafts provide requested game content only
+through an explicit Admin save; no player content, correctness, score or completion is fabricated.
+The saved-content preview performs no mutations. Unknown question membership stays unknown.
+
+Child-data editing remains Parent-only, explicitly confirmed by the user. Live image 404s and Teacher
+answer permissions remain backend issues. Details and requirement mapping: `CLIENT_REVISIONS_PART4.md`.
+
+## ADR-028 — Initialize public local configuration and preserve configuration failures
+
+**Date:** 2026-10-28 · **Status:** Accepted
+
+A fresh GitHub checkout has no gitignored `.env`. Lazy environment validation previously threw a
+plain Error inside the Axios request interceptor; error normalization replaced it with the generic
+unknown-error message before any network request. Login and registration therefore appeared to
+fail without an HTTP status.
+
+`npm run dev` now initializes `.env` from the public template only when no `.env` or terminal API
+URL exists. It never replaces a student's existing file. Environment validation uses a dedicated
+ConfigurationError, mapped to an actionable AppError with kind `configuration`; arbitrary unknown
+errors still keep the safe generic message. `/api` is normalized to `/api/`; non-HTTP URLs or a base
+URL with a query/hash are rejected. Production retains a nontechnical configuration-failure message.
+No credentials or backend defaults are hardcoded into the HTTP client, and production builds still
+use their supplied environment values. Registration is not probed by creating real accounts.
+
+## ADR-029 — Client-approved temporary frontend content fallbacks
+
+**Date:** 2026-10-28 · **Status:** Accepted by explicit client request
+
+The client requested that public uploaded content images display immediately without waiting for
+backend static-file repair, and asked for every feasible frontend fix. This supersedes the earlier
+choice to show only a missing-image notice when the image server returns 404.
+
+After an acknowledged upload, the original image blob is stored under the real entity id and,
+when known, its server URL. Shared image rendering uses this copy when the server image fails or
+has no path. CacheStorage persists blobs across reloads on HTTPS/localhost; memory supports the
+current visit if persistent storage is denied. The cache is scoped to the API URL, expires after
+seven days, and keeps at most 64 entries. It is local to the browser and website origin, not a
+replacement for shared hosting. Existing missing images with no local original must be selected
+again. Only content images are involved; authentication and child answers/results are not cached.
+A failed API upload never replaces a previous local copy or turns into a successful mutation.
+
+Missing question choices may use a previously observed real content snapshot only when question
+id, text and type match. Correctness and other admin-only fields are stripped. Fresh server choices
+win, explicit deletes invalidate snapshots, and official answer submission remains server-controlled.
+No synthetic option ids or fabricated child results are introduced. The reported missing-راء phrase
+«تّب الحروف التالية لتكوين كلمة» is corrected for display without changing question/option ids.
+
+Initial-assessment question controls support batch include/removal using existing endpoints. Only
+acknowledged changes are remembered locally. Mixed checkboxes denote unknown/partial states, and
+the UI labels this as local history rather than claiming a global backend membership read.
+
+## ADR-030 — Five real games, replay without resubmission, staff role changes
+
+**Date:** 2026-11-10 · **Status:** Accepted (November client revision batch)
+
+- **Real games.** `components/games/real` adds five interactive games (`memory-pairs`,
+  `sort-and-match`, `target-catch`, `sequence-train`, `learning-maze`) with product-owned content
+  and easy / medium / hard levels; the default level follows the child's age (≤ 4 easy, ≤ 7 medium,
+  else hard). They are not quizzes: no server questions, no answer or option ids.
+- **Assignment stays on the backend.** A game opens as a real game only when the server's activity
+  `slug` names it (exact or `slug-suffix`), or — as before for unknown games — when the activity has
+  no usable slug _and_ no questions (`memory-pairs` default). Unknown slugs with questions keep the
+  visual default (ADR-027); the four legacy slugs keep their engines.
+- **No fabricated results.** No endpoint stores a real-game session (Swagger 2026-11-10, 84
+  operations). The submit endpoint needs real question / option ids, so real games are never
+  submitted; the end screen shows only the session's own figures. Backend request #11.
+- **Replay.** Games are always replayable. A plan activity that already has a saved result reopens
+  as a practice run that is never submitted (one result per activity: a second submit → 409); the
+  saved result is untouched and the page says so. The initial assessment stays one-time: completion
+  is enforced by the server, and the Parent cannot read its status (403, backend #10), so the
+  Parent's flow is unchanged.
+- **Teacher.** No play links and no player access (the submit endpoint is Parent-only anyway); no
+  initial-assessment card or route. The plan gate still follows the server status.
+- **Admin.** New games are created only from the five real games (visual radio cards); an activity
+  saved with a legacy template keeps that card when edited.
+
+## ADR-031 — Client revision 2026-11-14: one-time tests, staff names, Parent reports, password
+
+**Date:** 2026-11-14 · **Status:** Accepted (client screenshots batch)
+
+- **Initial assessment already completed.** Live, `start` answers 404 "لا يوجد تقييم أولي متاح
+  حالياً." after completion (the Parent cannot read the result — #10). When the categories read lists
+  categories, that exact answer is shown as «أكمل … التقييم المبدئي» (not a red error); with no
+  categories the server message is kept. Nothing is stored on the device. The MSW mock follows the
+  live rule.
+- **Tests are one-time in the plan.** Supersedes ADR-030's "tests reopen as practice": a completed
+  test has no link and its player says it is done; games stay replayable (practice, never
+  resubmitted).
+- **No level picker.** Real games keep easy / medium / hard content, chosen only from the child's
+  age; the start screen and the play header no longer show levels.
+- **Staff names** come only from real sources (`childFacts` options): plan names for the
+  Specialist, the signed-in teacher for the Teacher, the report's specialist for the Parent;
+  missing ones are backend request #15.
+- **Parent reports restored** read-only: sidebar «التقارير», list and detail routes (download from the
+  detail page) and a «تقرير الأخصائي» panel on the child page (`ChildReportSummary`, shared).
+- **Admin assessment results**: `/admin/children/:childId/assessment` (the Specialist page, named
+  from the result's `childName` / `parentName`), linked from each completed child on the parent's
+  user page.
+- **Change password** for every role: sidebar «تغيير كلمة المرور» → `ChangePasswordDialog`
+  (`POST Auth/change-password`, Swagger body), strength rules shared with registration.
+- **Teacher notes error** is a server rule (#14); no frontend workaround.

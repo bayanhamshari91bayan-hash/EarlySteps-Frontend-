@@ -1,0 +1,117 @@
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--gradient-brand);
+  color: var(--color-text-on-dark);
+  box-shadow: var(--shadow-card);
+}
+.cover {
+  display: none;
+}
+.body {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: var(--space-4);
+  min-inline-size: 0;
+  flex-wrap: wrap;
+}
+.avatar {
+  flex-shrink: 0;
+  border: 3px solid var(--color-glass-strong);
+}
+.identity {
+  flex: 1;
+  min-inline-size: 0;
+}
+.eyebrow,
+.name,
+.progressText,
+.progressTitle {
+  margin: 0;
+}
+.eyebrow {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+.name {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-black);
+  overflow-wrap: anywhere;
+}
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+  margin: var(--space-2) 0 0;
+  list-style: none;
+}
+.fact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-glass);
+}
+.fact svg {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+  flex-shrink: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.progress {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  flex: 1;
+  min-inline-size: min(100%, 14rem);
+}
+.progressHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.progressTitle,
+.progressText {
+  font-size: var(--font-size-sm);
+}
+.percent {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary-strong);
+}
+.progressText {
+  color: var(--color-text-secondary);
+}
+.hero[data-tone='soft'] {
+  background: var(--color-primary-soft);
+  color: var(--color-text-primary);
+}
+.hero[data-tone='soft'] .fact {
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+}
+@media (max-width: 40rem) {
+  .hero {
+    padding: var(--space-4);
+  }
+  .progress {
+    flex-basis: 100%;
+  }
+}

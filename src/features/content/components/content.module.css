@@ -1,0 +1,976 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Sub-navigation between the content pages (tab-like links). */
+.nav {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  inline-size: fit-content;
+  max-inline-size: 100%;
+}
+
+.navLink {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--tap-target-min);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.navLink svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.navLink:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-muted);
+}
+
+.navLinkActive,
+.navLinkActive:hover {
+  background: var(--color-primary-strong);
+  color: var(--color-on-primary);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.filter {
+  min-inline-size: 14rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+@media (min-width: 64rem) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+}
+
+.rowIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+.rowIcon svg {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+.rowIcon img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.rowTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-black);
+  overflow-wrap: anywhere;
+}
+
+.rowTitleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowTitleLink:hover {
+  color: var(--color-primary-strong);
+  text-decoration: underline;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.twoColumns {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (min-width: 40rem) {
+  .twoColumns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.legend {
+  padding-inline: var(--space-2);
+  font-weight: var(--font-weight-black);
+}
+
+.optionRow {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.optionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-bold);
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--color-danger-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.imageFieldWrap {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.imageField {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.previewBox {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 5.5rem;
+  block-size: 5.5rem;
+  overflow: hidden;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.preview {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.previewEmpty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+.previewEmpty svg {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+.imageActions {
+  display: grid;
+  flex: 1;
+  justify-items: start;
+  gap: var(--space-2);
+  min-inline-size: 12rem;
+}
+
+.fileButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--tap-target-min);
+  padding-inline: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.fileButton svg {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+}
+
+/* The native input stays in the page (keyboard, screen readers) but is drawn by the label. */
+.fileInput {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fileInput:focus-visible + .fileButton,
+.imageActions:has(.fileInput:focus-visible) .fileButton {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.questionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.questionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.questionImage {
+  max-inline-size: 12rem;
+  border-radius: var(--radius-sm);
+}
+
+.options {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.optionMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.optionImage {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+}
+
+.note {
+  margin: 0;
+}
+
+.typeToggle {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+/* Correct-answers editor (client revision 2026-10). */
+.correctList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sequenceList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sequenceItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.sequenceNumber {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+  font-weight: var(--font-weight-black);
+}
+
+.sequenceLabel {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* Initial-assessment tree: assessment → category → activity → question (client 2026-10). */
+.assessmentRoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--gradient-brand);
+  color: var(--color-text-on-dark);
+}
+
+.assessmentRoot .muted {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.rootIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-glass);
+}
+
+.rootIcon svg {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+.rootTitle {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-black);
+}
+
+/* Categories hang from the assessment on a vertical rule. */
+.tree {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  padding-inline-start: var(--space-4);
+  border-inline-start: 3px solid var(--color-primary-soft);
+  list-style: none;
+}
+
+.categoryBlock {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-inline-start: 5px solid var(--color-primary-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.categoryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.categoryIndex {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-strong);
+  color: var(--color-text-on-dark);
+  font-weight: var(--font-weight-black);
+}
+
+.categoryQuestions {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.categoryTitle {
+  flex: 1;
+  min-inline-size: min(100%, 12rem);
+  margin: 0;
+  font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
+}
+
+/* Small level name before a title («التصنيف:», «اختبار», «لعبة»). */
+.levelLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.levelText {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+/* Activity level: indented under its category on a light panel. */
+.activityGroup {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.groupTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-md);
+}
+
+.treeIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+.treeIcon svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+.treeIcon img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.questionList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.questionNumber {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.questionThumb {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.questionThumb img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.questionText {
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.questionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.questionRow .rowMain {
+  flex: 1;
+  min-inline-size: min(100%, 10rem);
+}
+
+/* Admin activities grouped by category (client revision 2026-10). */
+.categoryGroups {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.categorySection {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.categoryHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding-block-end: var(--space-2);
+  border-block-end: 2px solid var(--color-primary-soft);
+  font-size: var(--font-size-lg);
+}
+
+.categoryHeading svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  color: var(--color-primary-strong);
+}
+
+/* Activity detail header: the real icon next to the activity's facts. */
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.detailIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+.detailIcon svg {
+  inline-size: 2rem;
+  block-size: 2rem;
+}
+
+.detailIcon img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+/* Game form: «نوع اللعبة» and the chosen template's guidance. */
+.templatePicker {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.templateInfo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+}
+
+.templateIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-violet-soft);
+  color: var(--color-violet-strong);
+}
+
+.templateIcon svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.templateCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.templateCard .rowMain {
+  flex: 1;
+  min-inline-size: 8rem;
+}
+
+/* Game detail: the template and how the questions fit it. */
+.templatePanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+/* Categories: the whole card opens the category's activities (client revision 2026-10). */
+.categoryCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  transition: border-color var(--duration-fast) ease;
+}
+
+.categoryCard:hover,
+.categoryCard:focus-within {
+  border-color: var(--color-primary-border-hover);
+}
+
+.categoryLink {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: min(100%, 14rem);
+  min-block-size: var(--tap-target-min);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.categoryLink:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.categoryChevron {
+  flex-shrink: 0;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+/* «نوع اللعبة» visual cards (client revision 2026-11). */
+.typePicker {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.typeLegend {
+  margin-block-end: var(--space-2);
+  font-weight: var(--font-weight-bold);
+}
+
+.typeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-3);
+}
+
+.typeCard {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-block-size: var(--tap-target-min);
+  padding: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.typeCard:has(.typeRadio:focus-visible) {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.typeCardSelected {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-soft);
+}
+
+.typeRadio {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-end: var(--space-2);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.typeText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.typeSkill {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.typeChosen {
+  flex-shrink: 0;
+  color: var(--color-primary-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Initial assessment admin (client revision 2026-11): overview counts and collapsible categories. */
+.overviewCounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.overviewCount {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-bold);
+}
+
+.overviewValue {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-black);
+}
+
+.collapseButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--tap-target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.collapseButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.chevron,
+.chevronOpen {
+  flex-shrink: 0;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .chevronOpen {
+    transition: none;
+  }
+}
+
+.countChips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Question dialog (client revision 2026-11): larger, clearer text and less scrolling. */
+.questionForm {
+  gap: var(--space-4);
+  font-size: var(--font-size-md);
+}
+
+.questionForm label,
+.questionForm .fieldLabel,
+.questionForm .legend {
+  font-size: var(--font-size-md);
+}
+
+.questionForm input,
+.questionForm select,
+.questionForm textarea {
+  font-size: var(--font-size-md);
+}
+
+.optionGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 48rem) {
+  .optionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.imageFieldWrap[data-compact] .previewBox {
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+}
+
+.imageFieldWrap[data-compact] .imageField {
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.imageFieldWrap[data-compact] .imageActions {
+  min-inline-size: 0;
+  gap: var(--space-1);
+}
+
+/* The compact box shows only the icon: the status line next to it already says "no image". */
+.imageFieldWrap[data-compact] .previewEmpty > span {
+  display: none;
+}

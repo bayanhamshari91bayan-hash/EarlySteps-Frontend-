@@ -1,0 +1,50 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.onDark {
+  color: var(--color-text-on-dark);
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 3rem;
+  block-size: 3rem;
+}
+
+.logoImage {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* On gradient panels the logo sits on a white tile so its colours stay legible. */
+.onDark .logo {
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.name {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-black);
+  letter-spacing: var(--letter-spacing-display);
+  white-space: nowrap;
+}
+
+.lg .logo {
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+}
+
+.lg .name {
+  font-size: var(--font-size-3xl);
+}

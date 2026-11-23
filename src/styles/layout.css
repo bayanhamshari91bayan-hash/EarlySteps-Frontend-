@@ -1,0 +1,16 @@
+/* Tiny structural utilities shared by app-level pages. Components use CSS Modules. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.page-center {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  min-block-size: 100dvh;
+  padding: var(--space-4);
+  text-align: center;
+}

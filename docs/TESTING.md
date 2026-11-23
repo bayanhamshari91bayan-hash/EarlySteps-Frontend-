@@ -1,0 +1,164 @@
+# Testing
+
+## Tooling
+
+- **Vitest** (jsdom environment, globals enabled) — config in `vite.config.ts`.
+- **React Testing Library** + `@testing-library/jest-dom` matchers (`src/test/setup.ts`).
+- `npm run test` (CI/once), `npm run test:watch` (development).
+
+## What to test
+
+| Level       | Target                                                                                                       | When                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Unit        | Zod schemas, permission model, `normalizeError`/`extractBackendDetails`, pure utils, role/enum label mapping | As soon as the logic exists                                  |
+| Component   | Components with behavior: forms (validation, error display), guards, conditional rendering                   | With the feature                                             |
+| Integration | Feature flows: page + hooks + router with the API mocked at the network layer                                | For critical flows (login, add child, assessment submission) |
+| End-to-end  | Full browser flows against a real/staging backend                                                            | Only if justified later (e.g. Playwright) — ADR required     |
+
+## Priorities per area (from discovery)
+
+| Area                | Unit                                                                                                                | Component                                                                 | API integration (MSW)                                  | Route / permission                                                                          | E2E                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Authentication      | login/register schemas; token/session parsing; `extractBackendDetails` for string / `{message}` / `string[]` errors | Login & register forms: validation messages, server errors, pending state | login success/401, register errors, forgot/reset flows | public-only redirect when signed in                                                         | Login per role (once staging exists) |
+| Authorization       | permission map (`can()`), role-value mapping (Arabic ↔ key)                                                         | `<Can>` rendering                                                         | 401 → session cleared; 403 → unauthorized page         | Every `RoleGuard`: allowed role passes, other roles → `/unauthorized`, anonymous → `/login` | Cross-role URL access                |
+| Child CRUD          | child schema (Age, gender values)                                                                                   | ChildForm validation; delete confirm                                      | add/edit/delete invalidate list + detail               | parent-only                                                                                 | Add child happy path                 |
+| Assessment          | runner state machine (index, answered, can complete)                                                                | question renderers per type; "complete" disabled until all answered       | start → answer → complete; errors mid-flow             | operator guard                                                                              | Full assessment run                  |
+| Content CRUD        | multipart builders (`Options[i].*` keys)                                                                            | Activity/question editors; destructive confirms                           | create/edit/delete + invalidation                      | admin-only                                                                                  | —                                    |
+| Training plans      | ordering, completion display                                                                                        | add/remove activity UI                                                    | add/remove invalidation; "no plan" message             | specialist-only editor                                                                      | —                                    |
+| Assignments         | —                                                                                                                   | assign dialogs (multi-select children)                                    | assign specialist / teacher                            | admin / specialist                                                                          | —                                    |
+| Feedback            | note schema                                                                                                         | note form, edit/delete                                                    | CRUD invalidation                                      | teacher-only                                                                                | —                                    |
+| Destructive actions | —                                                                                                                   | ConfirmDialog: cancel does nothing, confirm calls once, pending disables  | delete endpoints                                       | —                                                                                           | —                                    |
+| Chat                | message ordering/merging (old/new cursors), unread math                                                             | thread rendering, send, optimistic message                                | pagination `beforeId`/`afterId`, seen, unread count    | per-role availability                                                                       | Two-user exchange (staging)          |
+
+Visual markup and static layouts are not tested beyond smoke tests. Accessibility checks (labels,
+roles, names) come for free via Testing Library `getByRole`/`getByLabelText` queries.
+
+E2E (Playwright) becomes justified once a stable staging backend and non-secret test accounts
+exist — ADR required; credentials only via CI secrets.
+
+## Conventions
+
+- Colocate tests: `Thing.test.tsx` next to `Thing.tsx`.
+- Query by role/label/text (as users do), not by class names or test IDs, unless necessary.
+- Test behavior and outcomes, not implementation details.
+- Arabic text in assertions is fine and expected.
+- **Mocked HTTP (MSW, ADR-020):** `src/test/setup.ts` starts the MSW server with
+  `onUnhandledRequest: 'error'`, resets the in-memory mock DB before each test, wires the auth
+  hooks (requests carry the signed-in test user's token) and signs out after each test. Handlers
+  live in `src/mocks/handlers/<domain>.ts` (built from the Swagger contracts; mock authorization
+  mirrors the intended backend rules). Override per test with `server.use(...)`.
+- Helpers: `renderWithRouter(routes, path)` / `renderInRouter(element)` (fresh QueryClient, no
+  retries), `signInAs(role)` / `signInForPath(path)` (`src/test/session.ts`).
+- Assert request methods, URLs, query params and bodies (JSON or multipart `FormData`) in
+  `server.use` handlers; assert cache refresh by the UI updating after mutations.
+- The unit/integration suite never calls the live backend.
+- **Live tests** (`vitest.live.config.ts`, `src/test/live/`, credentials from the gitignored
+  `.env.e2e.local`, excluded from `npm run test`/`validate`, nothing printed):
+  - `npm run test:live:read` — the app's own login + GET fetchers + Zod schemas for Parent,
+    Specialist, Admin, Super Admin.
+  - `npm run test:live:write` — the app's own write functions on disposable `E2E Test …` records:
+    child create/edit/delete, assessment start/answer/complete (result), assign specialist,
+    assign teacher, report create/edit/PDF/delete (parent sees it), first plan activity creates the
+    plan, category / test + game
+    activities / question / option CRUD, assessment composition. Every record is tracked and
+    deleted in `afterAll`; a 404 counts as already gone (cascades); **any other leftover fails the
+    run** with its id. Not covered: chat send (messages cannot be deleted), registration (users
+    cannot be deleted).
+  - `npm run test:live` runs both, sequentially. Result 2026-10-07: read 6/6, write 6/6.
+    Result 2026-10-08: read 5/6, write 5/6 (backend issues, since fixed).
+    **Result 2026-10-10: read 5/6, write 6/6** — the one failure is the backend's new Admin 403 on
+    `initial-assessment/categories`; cleanup verified. The write suite now also checks the saved
+    assessment result (`GET …/result`, Parent and Specialist) and a plan-activity submission whose
+    counts appear in the specialist plan.
+  - Live errors are redacted (`liveSession.ts` strips request config/response) so no token or
+    response body reaches the test output.
+  - Browser E2E with real logins is run by a person (the assistant does not type real passwords
+    into the browser).
+
+## Don't
+
+- Don't write tests for empty scaffolding or trivial markup.
+- Don't snapshot whole pages.
+- Don't commit real credentials or real children's data as fixtures.
+
+## Client revisions 2026-10 (branch `feature/earlystep-client-revisions`, 2026-10-16)
+
+**379 tests in 74 files** (`npm run validate` green, build OK). New or updated tests cover:
+forgot password as one centred card with no «تجربة بريد إلكتروني آخر»; child cards as the profile
+link with real server counts and no button / progress; the plan summary and completion %
+(`planSummary.test.ts` — 2 of 4 → 50 %, all → 100 %, server progress preferred, no invented 0);
+specialist assignment (list + active state, assigned vs assignable children, one bulk request,
+refresh, inactive specialist, empty); correct answers (SingleChoice clears the old answer first and
+re-fetches, MultiSelect sends only changed options and needs one answer, Sequence move up / down
+sets `CorrectOrder`); image replacement payloads and the "saved but not served" notice; the
+initial-assessment hierarchy (category → questions, add appears at once, remove disappears, every
+category listed, empty and error states); the teacher plan page (no tabs, summary, results, play
+links, notes CRUD inside, old links redirect); games (real game row with play link, empty state, no
+games route outside mock mode).
+
+**Live suites (2026-10-16):** `test:live:read` **13/13** (now also the parent child counts, the
+questions of every category and the Admin's assignable children). `test:live:write` **4/6** — the
+Admin flow passes with the new checks (icon stored, replaced with a new path, kept without a file;
+SingleChoice answer A → B → A survives re-fetch); the two failures are the shared live state, not
+the frontend: the initial assessment currently has no categories, so `start` answers "لا يوجد تقييم
+أولي متاح حالياً." and the specialist's result read that depends on it has nothing to read. Cleanup
+verified (no new leftovers). Responsive check at 390 px on every changed screen: no sideways scroll.
+
+## Current tests (2026-10-15)
+
+**346 tests in 67 files** (`npm run test`), all against MSW. The final pass removed the tests of
+deleted legacy code (200-with-message failures, old start shapes, birth-date ages, unused helpers)
+and added tests for the new rules (Teacher never calls the staff-only result, report creation
+waits for existing reports, `ServerImage` fallback, rejected legacy shapes):
+
+| Area                                                  | Files | Covers                                                                                                                                                                                                                                   |
+| ----------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core (`services`, `constants`, `utils`, `components`) |    14 | error normalization, multipart builder, media URLs, role normalization, password policy, shared choice answers (payload per type), players, primitives                                                                                   |
+| App (`app`)                                           |     3 | route guards, session restore after reload (`Auth/me` ok / 401 → login / 5xx → retry / role from `Auth/me` for direct URLs), logout clears session + cache, role navigation, unread badge                                                |
+| Auth                                                  |     7 | login → `Auth/me` (user and role from `Auth/me`, only the token stored, explicit header wins over a stale token), unknown role refused, register (no `Role`), forgot (neutral), reset                                                    |
+| Children                                              |     3 | list states, add/edit/delete, parent vs staff profile, saved result with per-question details (staff), teacher-notes tab (specialist only)                                                                                               |
+| Assessment & activities                               |    16 | start → answer (exact MultiSelect set, Sequence order + reset) → complete, plan player (all types, 409 without retry, unanswerable activity blocked, no invented stars), practice labels, game logic                                     |
+| Content (admin)                                       |     6 | categories/activities/questions/options CRUD, assessment composition (badges; error + retry when membership cannot be read)                                                                                                              |
+| Plans & reports                                       |     5 | plan add/remove, score + server progress + child's answers on demand, no-teacher 400 message, reports per role, PDF                                                                                                                      |
+| Dashboards, users, notes                              |     9 | stats, parent counts with error + retry, `Admin/specialists` picker (inactive disabled) + assignment refresh, super admin `usersByRole` from the server, create staff / deactivate / re-activate (`isActive`), teacher notes list + CRUD |
+| Chat                                                  |     1 | conversations, seen, send, polling, older messages                                                                                                                                                                                       |
+| Landing                                               |     1 | hero, CTAs, no fabricated stats                                                                                                                                                                                                          |
+
+**Production build (2026-10-15):** `npm run build` + `npm run preview` — direct refresh of
+every area route returns the app, assets load, no mock worker, the built login form calls
+`https://earlystep22.runasp.net/api/Auth/login` (checked in the browser with made-up
+credentials → 401).
+
+**Live suites (2026-10-15, production data audit):** `test:live:read` **13/13**
+— `Auth/me` for every role + anonymous 401, `Admin/specialists` (= the specialist users,
+Specialist 403), Admin assessment membership, parent reads (the saved assessment result is
+staff-only and not read as Parent), specialist results and teacher feedback lists, Super Admin
+`isActive` on every user and `usersByRole`.
+`test:live:write` **6/6** — every question type in the assessment, staff result details (Admin
+before assignment; the unassigned specialist gets 403 since 2026-10-15; the assigned specialist
+reads it),
+`Admin/specialists` assignment, no-teacher 400, empty / partial submit 400, plan result 403 / 404,
+duplicate report 409; cleanup verified. A successful plan submission (score, 409, result) runs only
+with `E2E_PLAN_SUBMIT=1`: by product rule a child with saved results is kept, so it would leave a
+record behind (verified with Python on 2026-10-14).
+
+**No dummy data in production (2026-10-15, `PRODUCTION_DATA_AUDIT.md`):** the sidebar has no
+practice tests/games outside mock mode (route test); a production build — also with
+`VITE_USE_MOCKS=true` — contains no MSW code, no `mockServiceWorker.js` and none of the practice
+content (checked by grepping `dist/`); only the live "not completed" 404 text maps to "no result".
+
+**Product rules covered by unit tests (2026-10-14):** the parent never calls the saved-result
+endpoint (assessment page and profile) and finishes with a confirmation without scores; deleting
+a child with saved activity results is disabled; played plan activities have no remove action.
+
+**Browser regression (2026-10-14, development mock mode, localhost):** every role signed in with
+the mock fixture accounts — login → `Auth/me` → area, direct-URL reload restore, invalid stored token
+→ login with storage cleared, logout clears storage, role mismatch → `/unauthorized`; parent child
+profile, assessment with all three types, completed plan activity, reports, chat; specialist plan
+(score, progress, answers), profile tabs; teacher notes create / edit / delete and the specialist
+seeing the note; admin assessment categories add / remove, specialist assignment; super admin
+create staff / deactivate; RTL; 390 px width without horizontal scroll; no console errors. Browser
+sign-in with the real accounts is left to the team (no real passwords typed by the assistant).
+
+Helpers: `src/test/renderWithRouter.tsx`. `src/test/setup.ts` stubs
+`HTMLDialogElement.showModal/close` (missing in jsdom).

@@ -1,0 +1,182 @@
+# API Integration
+
+> Backend documentation: <https://e3mockwfb7.apidog.io/> (Apidog). Endpoint catalogue:
+> [`API_ENDPOINTS.md`](API_ENDPOINTS.md). **Never invent endpoints, fields, or response
+> formats.** The Replit prototype has its own unrelated backend and is **not** a contract source.
+
+## Live backend (verified 2026-10-06)
+
+| Topic                 | Verified fact                                                                                                                                                            | Frontend handling                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Base URL              | `https://earlystep22.runasp.net/api/` (root `/` answers "API is running")                                                                                                | `VITE_API_BASE_URL` (must end with `/api/`); request paths are **relative** (`Parent/GetMyChildren`) so `/api/api` can't happen |
+| Contract              | Public Swagger at `/swagger/v1/swagger.json` — 84 operations (snapshot refreshed 2026-10-15), **all under `/api/`**, consistent casing                                   | Snapshot in `docs/api/swagger.json`; Swagger is the contract source (Apidog is outdated)                                        |
+| Auth                  | `Bearer` scheme; 401 = ProblemDetails                                                                                                                                    | Interceptor adds the token; 401 → sign out + clear cache                                                                        |
+| Errors                | ProblemDetails (`title`, `status`, `errors{Field:[…]}`), `{ message }`, string, string[]                                                                                 | `extractBackendDetails()` in `services/http/apiError.ts`                                                                        |
+| CORS                  | Preflight from `http://localhost:5173` allowed (`*`)                                                                                                                     | Dev server talks to the API directly                                                                                            |
+| Login response        | **Verified:** `{ id, fullName, accessToken, role }`, JWT 120 h, no refresh/cookie                                                                                        | `parseLoginResponse` (verified shape; JWT claims as fallback)                                                                   |
+| Enums                 | Roles `ولي أمر`, `معلم/ة`, `أخصائي/ة` (observed); gender `ولد`/`بنت` (Swagger); question types `SingleChoice`, `MultiSelect`, `Sequence` (`Matching` removed 2026-10-08) | `constants/backendRoles.ts`, `services/api/childrenLists.ts`, `services/api/activityType.ts`                                    |
+| Child model           | `FullName`, **`Age` (int)**, `Gender` — no birth date                                                                                                                    | Add/edit child asks for age                                                                                                     |
+| Responses             | Swagger documents response schemas only for chat; the others were **verified live** for every readable endpoint (`api/LIVE_CONTRACTS.md`)                                | Zod schemas follow the verified shapes; `npm run test:live` re-checks them                                                      |
+| "No data" responses   | Reports and specialist plans answer **404 + Arabic message** when empty                                                                                                  | Mapped to empty states (`fetchChildReports`, `fetchSpecialistPlan`); other 404s stay errors                                     |
+| Required query params | `type` on `TrainingPlan/children/{id}/activities` and `Admin/categoriesActivity`                                                                                         | The child plan fetches tests and games in parallel                                                                              |
+
+## Mocked API (tests + development mock mode)
+
+`src/mocks/` (MSW) implements the Swagger contracts with fictional data. Vitest runs every test
+against it (unhandled requests fail). `VITE_USE_MOCKS=true` (local `.env`, dev only) serves the
+whole app from it with a "وضع المحاكاة" banner; the worker is stripped from production builds.
+
+## Environment
+
+| Variable            | Required | Description                                                                  |
+| ------------------- | -------- | ---------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL` | yes*     | Backend base URL ending with `/api/` (`https://earlystep22.runasp.net/api/`) |
+| `VITE_USE_MOCKS`    | no       | `true` = development mock mode (ignored in production builds)                |
+
+\* Validated lazily by `getEnv()` (`src/config/env.ts`) the first time a request is made. A
+missing/invalid value throws a descriptive error. All `VITE_*` values are **public** (bundled
+into the client) — never put secrets in them.
+
+## Layers
+
+```text
+Component
+  └─ feature hook       features/<x>/api/*Queries.ts     (useQuery / useMutation, keys from services/api/queryKeys.ts)
+       └─ request fn    features/<x>/api/<x>Api.ts       (Zod-validated DTO → mapped domain model)
+            (shared cross-feature reads: services/api/* + hooks/api/childResources.ts)
+            └─ httpClient   services/http/httpClient.ts
+                 └─ interceptors  base URL · auth header · error normalization · 401 hook
+```
+
+Components only call feature hooks. They never import `httpClient` or Axios.
+
+## Axios client
+
+- `httpClient` — one shared instance, `timeout` 30s, JSON `Accept` header.
+- Request interceptor: sets `baseURL` from env; adds `Authorization: Bearer <token>` when the
+  registered `getAccessToken()` returns a token (header scheme TBD against API docs).
+- Response interceptor: converts every failure to `AppError`; calls `onUnauthorized()` on 401.
+
+## Auth token handling
+
+- `AuthHttpBridge` (`app/providers`) registers `registerHttpAuthHooks({ getAccessToken, onUnauthorized })`
+  at startup, keeping `services/http` independent of features.
+- Session = `services/session` (Zustand): token + expiry stored (sessionStorage, or localStorage
+  with "تذكّرني"); the user lives in memory only and comes from `GET Auth/me` (login and reload).
+  Details and limits: `SECURITY.md`.
+- No refresh token or logout endpoint exists: on expiry/401 the user signs in again; logout is
+  local (drop token, clear cache).
+
+## Error normalization
+
+```ts
+class AppError extends Error {
+  kind: 'http' | 'network' | 'timeout' | 'canceled' | 'unknown';
+  status?: number;
+  code?: string;
+  fieldErrors?: Record<string, string[]>;
+}
+```
+
+- `normalizeError(unknown): AppError` handles Axios errors, timeouts, cancellations, network
+  failures. Arabic fallback messages are defined per case/status.
+- `extractBackendDetails()` is a **TBD stub**: implement it against the documented backend
+  error body to extract message, code, and field errors.
+- Forms map `fieldErrors` onto React Hook Form with `setError`.
+- TanStack Query's `defaultError` type is registered as `AppError`.
+
+## TanStack Query conventions
+
+- Defaults (`src/app/providers/queryClient.ts`): `staleTime` 30s, no refetch on focus, up to
+  2 retries only for network/5xx errors, no mutation retries. Tune per query when justified.
+- One **query-key factory** per feature, typed with `as const`:
+
+```ts
+// features/children/api/childrenKeys.ts  (illustrative shape — not a real endpoint)
+export const childrenKeys = {
+  all: ['children'] as const,
+  lists: () => [...childrenKeys.all, 'list'] as const,
+  list: (filters: ChildrenFilters) => [...childrenKeys.lists(), filters] as const,
+  details: () => [...childrenKeys.all, 'detail'] as const,
+  detail: (id: ChildId) => [...childrenKeys.details(), id] as const,
+};
+```
+
+- Never write inline array keys in components.
+- Prefer `queryOptions()` helpers so keys and fetchers stay together.
+
+## Mutation invalidation strategy
+
+- After a mutation, invalidate the narrowest affected keys (e.g. `childrenKeys.lists()` and
+  `childrenKeys.detail(id)`), not the whole cache.
+- Use `setQueryData` only when the server returns the updated entity.
+- Optimistic updates only where UX clearly benefits and rollback is implemented.
+- On logout: `queryClient.clear()`.
+
+## API typing conventions
+
+- Types mirror backend field names exactly (no renaming). Arabic labels are mapped in UI.
+- Request/response types live in `features/<x>/types/` (or `api/` if API-only).
+- Shared envelope/pagination types (once documented) go in `src/services/api/`.
+- Use Zod to parse responses when shape reliability is uncertain; otherwise TypeScript types.
+- Branded or aliased ID types (e.g. `type ChildId = string`) once ID formats are known.
+- Dates: keep as ISO strings at the boundary; format for display with `Intl` in `ar` locale.
+
+## Contract notes (re-verified 2026-10-14)
+
+- **Session:** `login()` posts `Auth/login` for the token, then `GET Auth/me` with that token
+  (explicit header — the request interceptor never overrides one) for `{ id, fullName, email,
+roles }` (`features/auth/api/currentUser.ts`, role normalized, unknown → refused). Storage holds
+  only `{ accessToken, expiresAt }`; after a reload the token is `pending` and the guards render
+  `SessionRestore` (`GET Auth/me`, query key `auth.me`) until the user is known; 401 → sign out +
+  `queryClient.clear()`; other errors → retry.
+- **Answers:** both players use `components/players/choiceAnswer.ts` — SingleChoice
+  `selectedOptionId`, MultiSelect `selectedOptionIds`, Sequence `orderedOptionIds`. The assessment
+  sends one per question (`submitAnswer({ assessmentId, answer })`); the plan sends all at once
+  (`submitPlanActivity`, every question required; 400 / 409 shown as sent).
+- **Assessment result:** `complete` only completes (its body is not read). The result
+  (`AssessmentResult`, `services/api/assessmentResult.ts`: `assessmentId`, per category
+  `totalQuestions` / `correctAnswers`, `questions` with type, verdict, child's and correct answers)
+  is read from `GET initial-assessment/{childId}/result` by staff only — never from the Parent UI
+  (product decision 2026-10-14).
+- **Results are kept:** the parent cannot delete a child whose plan has a completed activity, and
+  the specialist has no remove action for played activities (product rule).
+- **Plans:** `PlanActivity.score`; `SpecialistPlan.progress`; `fetchPlanActivityResult`
+  (`training-plans`, query key `trainingPlans.activityResult`, loaded when "عرض إجابات الطفل" opens;
+  Specialist only). The first activity without a teacher shows the server's 400 message.
+- **Specialists:** `fetchSpecialists()` (`GET Admin/specialists`, key `users.specialists`).
+- **Teacher feedback:** `fetchChildFeedbacks(childId)` (`services/api/teacherFeedback.ts`, key
+  `notes.byChild`, hook `useChildFeedbacks`) — teacher notes page and the specialist's
+  "ملاحظات المعلم" tab; note writes invalidate the child's list. Items verified live 2026-10-15:
+  `{ id, childId, childName, teacherId, teacherName, content, createdAt }` (the teacher's name is
+  shown to the specialist).
+- **Super Admin:** `createStaffUser` (Teacher / Specialist wire roles), `deactivateUser`,
+  `reactivateUser` (`PUT SuperAdmin/users/{id}` with the user's own values + `isActive: true`);
+  users-by-role from `SuperAdmin/dashboard` `usersByRole`.
+- **Strict live contracts (2026-10-15):** parsers accept only the live shapes — no Apidog aliases,
+  no 200-with-message failures, no `birthDate`, five role values, `questionId` required in plan
+  activities; a missing activity is a real 404. Server images go through `ServerImage` /
+  `resolveMediaUrl` with a neutral fallback only when the field is null or the image fails.
+- **Reports:** one report per child — `fetchChildReport(childId)`; the backend answers 409 to a
+  second one.
+- **Registration:** no `Role` is sent (public registration = Parent).
+- **Chat:** REST + polling (SignalR out of scope).
+
+## Unknowns (TBD)
+
+Teacher-feedback item fields (no data yet) · API versioning. SignalR is out of scope. Current backend
+list: `BACKEND_REQUESTS.md`.
+
+## Client revisions 2026-10
+
+- `fetchParentChildDetail` (`services/api/childrenLists.ts`, key `children.detail`) — the parent's
+  child with server counts; shared by the dashboard cards and the children feature.
+- `summarizePlan` (`services/api/planSummary.ts`) — plan summary math; `PlanSummary` renders it.
+- `fetchAssignableChildren` (`features/users`, key `users.assignableChildren`) — every child the
+  Admin can assign, from the parents' details (no Admin children list exists).
+- `fetchCategoryQuestions` (`features/content`, key `content.categoryQuestions`) — questions of a
+  category, grouped by activity.
+- `useSaveCorrectAnswers` + `planCorrectAnswerUpdates` (`features/content`) — sequential option
+  updates; the content cache refreshes even after a partial failure.
+- `ChildPlanPanel` / `PlanSection` (training-plans) and `TeacherNotesSection` (feedback) are
+  exported for the app-level `TeacherChildPage`.

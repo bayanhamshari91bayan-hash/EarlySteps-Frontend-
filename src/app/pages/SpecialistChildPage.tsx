@@ -1,0 +1,170 @@
+import {
+  ArrowRight,
+  ClipboardCheck,
+  FileText,
+  LayoutDashboard,
+  MessageSquareText,
+  Target,
+  UserX,
+} from 'lucide-react';
+import { useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
+import { Link, useParams } from 'react-router';
+
+import {
+  AssessmentPlanGate,
+  AssessmentStatusCard,
+  ChildHero,
+  PlanProgressCard,
+} from '@/components/shared/ChildDashboard';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { LoadingState } from '@/components/shared/LoadingState';
+import { SectionHeader } from '@/components/shared/SectionHeader';
+import { Button, getButtonClassName } from '@/components/ui/Button';
+import { AssessmentOverview, childFacts, TeacherFeedbackPanel } from '@/features/children';
+import { ChildReportEditor } from '@/features/reports';
+import { SpecialistPlanEditor, useSpecialistPlan } from '@/features/training-plans';
+import { useAssessmentStatus } from '@/hooks/api/assessmentStatus';
+import { useChildrenForRole } from '@/hooks/api/childResources';
+import { useRoleArea } from '@/hooks/useRoleArea';
+import { summarizePlan } from '@/services/api/planSummary';
+import { useSession } from '@/services/session';
+
+import styles from './ChildDashboardPage.module.css';
+
+type SpecialistTab = 'overview' | 'assessment' | 'plan' | 'notes' | 'reports';
+
+const TABS: readonly { value: SpecialistTab; label: string }[] = [
+  { value: 'overview', label: 'نظرة عامة' },
+  { value: 'assessment', label: 'التقييم المبدئي' },
+  { value: 'plan', label: 'الخطة التدريبية' },
+  { value: 'notes', label: 'ملاحظات المعلم' },
+  { value: 'reports', label: 'التقارير' },
+];
+
+/**
+ * Specialist child file (client revision 2026-11): five sections, each with a clear title above
+ * its content — overview (plan progress), initial assessment (view only once completed), training
+ * plan (editing), teacher notes (read-only) and reports. Section content stays mounted so a report
+ * draft survives switching sections. Child-data editing is Parent-only.
+ */
+export function SpecialistChildPage() {
+  const { childId = '' } = useParams();
+  const [tab, setTab] = useState<SpecialistTab>('overview');
+  const { paths } = useRoleArea();
+  const children = useChildrenForRole('Specialist');
+  const child = children.data?.find((item) => item.id === childId);
+  const plan = useSpecialistPlan(childId, Boolean(child));
+  // The specialist/children list is the signed-in specialist's own children.
+  const session = useSession();
+  const assessment = useAssessmentStatus(child ? child.id : undefined);
+  // The plan (and its figures) appears once the assessment is completed (or is not readable).
+  const isPlanOpen = assessment.state === 'complete' || assessment.state === 'unavailable';
+  const summary =
+    plan.data && isPlanOpen ? summarizePlan(plan.data.activities, plan.data.progress) : null;
+
+  let body;
+  if (children.isPending) {
+    body = <LoadingState />;
+  } else if (children.error) {
+    body = (
+      <ErrorState
+        title="تعذّر تحميل بيانات الطفل"
+        description={children.error.message}
+        action={
+          <Button variant="outline" onClick={() => void children.refetch()}>
+            إعادة المحاولة
+          </Button>
+        }
+      />
+    );
+  } else if (!child) {
+    body = (
+      <EmptyState
+        icon={<UserX />}
+        title="لم يتم العثور على الطفل"
+        description="قد يكون الرابط غير صحيح أو أن الطفل غير مُسنَد إليك."
+        action={
+          <Link to={paths.children} className={getButtonClassName()}>
+            العودة إلى الأطفال
+          </Link>
+        }
+      />
+    );
+  } else {
+    body = (
+      <>
+        <ChildHero
+          name={child.fullName}
+          eyebrow="متابعة الطفل والخطة التدريبية"
+          facts={childFacts(child, {
+            withParent: true,
+            specialistName: plan.data?.specialistName ?? session?.user.name ?? null,
+            teacherName: plan.data?.teacherName ?? null,
+          })}
+        />
+        <Tabs
+          className={styles.fileTabs}
+          label="ملف الطفل"
+          items={TABS}
+          value={tab}
+          onChange={setTab}
+        >
+          <div className={styles.main} hidden={tab !== 'overview'}>
+            <SectionHeader id="sp-overview" title="نظرة عامة" icon={LayoutDashboard} />
+            {summary && summary.total > 0 ? (
+              <PlanProgressCard
+                summary={summary}
+                assessmentScore={
+                  assessment.state === 'complete' ? assessment.result.overallScore : undefined
+                }
+              />
+            ) : (
+              <p className={styles.muted}>
+                تظهر نسبة إنجاز الخطة التدريبية هنا بعد إضافة أنشطة إلى الخطة.
+              </p>
+            )}
+            <AssessmentStatusCard status={assessment} to={paths.childAssessment(child.id)} />
+          </div>
+          <div className={styles.main} hidden={tab !== 'assessment'}>
+            <SectionHeader id="sp-assessment" title="التقييم المبدئي" icon={ClipboardCheck} />
+            <AssessmentOverview status={assessment} detailsTo={paths.childAssessment(child.id)} />
+          </div>
+          <div className={styles.main} hidden={tab !== 'plan'}>
+            <SectionHeader id="sp-plan" title="الخطة التدريبية" icon={Target} iconTone="accent" />
+            <AssessmentPlanGate status={assessment}>
+              <SpecialistPlanEditor
+                child={{ id: child.id, name: child.fullName, teacherName: child.teacherName }}
+                showSummary={false}
+              />
+            </AssessmentPlanGate>
+          </div>
+          <div className={styles.main} hidden={tab !== 'notes'}>
+            <SectionHeader
+              id="sp-notes"
+              title="ملاحظات المعلم"
+              icon={MessageSquareText}
+              iconTone="success"
+            />
+            <TeacherFeedbackPanel childId={child.id} />
+          </div>
+          <div className={styles.main} hidden={tab !== 'reports'}>
+            <SectionHeader id="sp-reports" title="التقارير" icon={FileText} iconTone="violet" />
+            <ChildReportEditor childId={child.id} />
+          </div>
+        </Tabs>
+      </>
+    );
+  }
+
+  return (
+    <div className={styles.page}>
+      <Link to={paths.children} className={styles.backLink}>
+        <ArrowRight aria-hidden="true" />
+        العودة إلى الأطفال
+      </Link>
+      {body}
+    </div>
+  );
+}

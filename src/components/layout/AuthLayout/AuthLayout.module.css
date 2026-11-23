@@ -1,0 +1,38 @@
+/* Warm canvas with soft blurred colour washes (Replit auth background). */
+.page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  min-block-size: 100dvh;
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-background);
+}
+
+/* Decorations are absolutely positioned — they never affect layout (Replit `blob` bug). */
+.page::before,
+.page::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: var(--radius-pill);
+  filter: blur(64px);
+  pointer-events: none;
+}
+
+.page::before {
+  inset-block-start: -10%;
+  inset-inline-start: -5%;
+  inline-size: min(30rem, 80vw);
+  block-size: min(30rem, 80vw);
+  background: var(--color-primary-soft);
+}
+
+.page::after {
+  inset-block-end: -10%;
+  inset-inline-end: -5%;
+  inline-size: min(25rem, 70vw);
+  block-size: min(25rem, 70vw);
+  background: var(--color-accent-soft);
+}

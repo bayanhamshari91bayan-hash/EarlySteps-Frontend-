@@ -1,0 +1,76 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-2);
+  min-block-size: var(--tap-target-min);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: var(--color-text-primary);
+}
+
+.backLink svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+/* Role content: the plan as the main column, the side panels next to it on wide screens. */
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 80rem) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.main,
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+.main[hidden] {
+  display: none;
+}
+.fileTabs > [role='tablist'] {
+  align-self: stretch;
+  display: grid;
+  /* Five sections (client revision 2026-11): one row when there is room, wrapping on phones. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+}
+.fileTabs [role='tab'] {
+  justify-content: center;
+  border-radius: var(--radius-card);
+  border: 1px solid transparent;
+  font-size: var(--font-size-md);
+}
+.fileTabs [role='tab'][aria-selected='true'] {
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

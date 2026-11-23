@@ -1,0 +1,164 @@
+# Game engine — Early Step games (client revision 2026-10)
+
+Early Step ships five reusable, child-friendly **game engines**. They are frontend product code;
+every game the child plays is a **real backend Activity of type `game`**: its title, icon, questions,
+options and saved result come from the API. Nothing about a child's game (assignment, answers,
+score, completion) is invented or stored only in the browser.
+
+```text
+Admin creates a game Activity (template saved in `Slug`) → adds its questions
+→ Specialist assigns it to a child (Training Plan)
+→ Parent / Teacher press «ابدأ» → the template's engine opens with the activity's real questions
+→ answers are sent once through the existing submit endpoint → score / completion stored in backend
+```
+
+## 1. Architecture
+
+`src/components/games/` (shared layer — both the Admin content feature and the activities player
+use it, and features never import each other):
+
+| File                                                                                | Role                                                                                  |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `types.ts`                                                                          | `GameSlug`, `GameTemplate`, `GameQuestion`, `ChallengeProps`                          |
+| `registry.ts`                                                                       | `GAME_TEMPLATES`, `resolveGameTemplate(slug)`, `buildGameSlug`, `engineFor`           |
+| `shared/GameStage.tsx`                                                              | One game look: identity band, progress, the real question (text + image), instruction |
+| `shared/GameOptionCard.tsx`                                                         | Big colourful option card (native button; server image or text; selected / order)     |
+| `shared/GameChallenge.tsx`                                                          | Renders one question with the right engine                                            |
+| `letter-hunt/`, `number-match/`, `memory-sequence/`, `focus-challenge/`, `spot-it/` | The five engines (one level each)                                                     |
+
+The registry holds only template metadata (slug, Arabic name, purpose, description, instruction,
+compatible question types, icon, tone, engine). No student data, no activities.
+
+The runner is `features/activities/components/PlanGameRun.tsx`; the routing decision is in
+`PlanActivityPlayerPage`.
+
+## 2. The game templates
+
+| Slug              | Arabic name  | Purpose           | Question type              | Interaction                                                                               | Answer sent                    |
+| ----------------- | ------------ | ----------------- | -------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------ |
+| `spot-it`         | ابحث وجِد!   | البحث البصري      | SingleChoice / MultiSelect | Visual search board; select the real target tiles                                         | Existing choice answer         |
+| `letter-hunt`     | صيد الحروف   | الحروف والقراءة   | SingleChoice               | Big letter cards; tap one (replaces the choice)                                           | `selectedOptionId`             |
+| `number-match`    | طابق الرقم   | الأرقام والحساب   | SingleChoice               | Large round number cards (the server's options — nothing counted or invented)             | `selectedOptionId`             |
+| `memory-sequence` | تحدي الذاكرة | الذاكرة والتسلسل  | Sequence                   | Tap-to-order (no drag needed): numbered badges + «ترتيبك» slots, «تراجع», «إعادة الترتيب» | `orderedOptionIds` (tap order) |
+| `focus-challenge` | تحدي التركيز | التركيز والانتباه | MultiSelect                | Grid of cards to select / unselect, counter «اخترت n من m», «مسح الاختيار»                | `selectedOptionIds`            |
+
+Correctness is never decided on the device: the server scores the submission. Option images are
+shown when the server sends them; a missing or failing image falls back to the option text (or
+«الخيار n») — never a broken image. All cards are native buttons (keyboard, focus ring,
+`aria-pressed`, Arabic labels), motion respects `prefers-reduced-motion`, layout uses logical CSS
+properties (RTL) and two shrinkable columns on phones.
+
+**Visual search.** `spot-it` renders one real option per tile, including repeated picture labels
+with distinct backend ids. SingleChoice and MultiSelect are supported; selected tiles indicate
+selection, not correctness. No timer, target count, score or reward is invented. The video
+reference is reproduced as a visual search interaction over Admin-authored content.
+
+**Mixed questions.** A question whose type is not the template's own type is played with the engine
+made for that type (SingleChoice → letter cards, Sequence → memory, MultiSelect → focus), so every
+real question stays answerable (the server saves a result only when every question is answered).
+Questions are never rewritten.
+
+## 3. Backend mapping and the `slug` field
+
+- **Persistence (exists):** the Activity `Slug` (`POST/PUT Admin/activities/{type}`, multipart
+  `Slug`; returned by `GET Admin/activities/*`). The game template is saved there: the template
+  slug itself (`letter-hunt`) or with a suffix (`letter-hunt-2`) so several games can share one
+  template. `resolveGameTemplate` accepts exactly `template` or `template-…`; nothing is matched by
+  database GUID or by title.
+- **Reading it in the player (missing):** the live Training Plan endpoints the Parent / Teacher
+  player uses (`GET TrainingPlan/children/{id}/activities[/{activityId}]`, verified 2026-10-15)
+  do **not** return `slug`. The app already reads an optional `slug` there; **until the backend
+  adds it, game activities use the visual-search default (ordering for Sequence)** (they keep working). Backend request:
+  return the activity `slug` on the Training Plan activity responses (and optionally on
+  `available-activities`).
+- **Answers:** `toChoiceAnswer` (shared with the generic player and the initial assessment).
+- **Submission:** once, at the end: `POST TrainingPlan/children/{childId}/activities/{planActivityId}/submit`
+  `{ answers }`. On success the Training Plan queries are invalidated (activity, plan, progress).
+  The finish button is disabled while saving; 400 / 409 are final (no retry, «تم إرسال نتيجة هذا
+  النشاط مسبقًا.»), network / 5xx errors offer «إعادة محاولة الحفظ».
+
+## 4. Routing and fallback
+
+Same route as before (no new URL, no extra ids exposed):
+`/{parent|teacher}/children/:childId/activities/:activityId/play`.
+
+| Activity                             | Player                          |
+| ------------------------------------ | ------------------------------- |
+| type ≠ game                          | generic activity player         |
+| game, known slug (`letter-hunt[-…]`) | the template's game engine      |
+| game, unknown slug or no slug        | visual search / ordering engine |
+
+An activity completed before the page opened shows «أُنجز هذا النشاط» (one attempt). After this
+session's submission the completion screen stays and shows the saved result **only with what the
+server returns** for the role (score / correct / wrong when present; otherwise «تم حفظ إجاباتك
+(n من m أسئلة)»). No stars, points or rewards.
+
+Leaving a game with unsaved answers asks first (in-app navigation: «مغادرة اللعبة؟»; tab close /
+reload: the browser's prompt). Temporary per-question state lives in component state only.
+
+## 5. Admin creation
+
+الأنشطة والأسئلة → الألعاب:
+
+- «قوالب الألعاب»: the game templates (name, purpose, question types) with «إنشاء لعبة» — an
+  explicit action that opens the normal form with the template chosen. Nothing is created
+  automatically. «إضافة مستوى جاهز» opens an editable level draft: the Admin reviews and saves
+  real questions/options. «معاينة اللعبة» previews saved content without recording results.
+- «إضافة لعبة» / edit: «نوع اللعبة» (or «بدون قالب (المشغّل العام)»); the chosen template shows its
+  purpose, description and compatible question types; the slug follows the template (a suffix is
+  kept when switching) and a slug that does not start with the template is rejected in Arabic.
+- Game detail page: «نوع اللعبة: …» with how many questions fit the template, and guidance when
+  some do not; questions, options, images and correct answers are edited as for any activity.
+
+## 6. Specialist assignment
+
+Child page → «إضافة نشاط» → «ألعاب»: the real game activities (`available-activities?type=game`),
+with the template name when the server sends the slug; assigned with the existing
+`POST TrainingPlan/specialist/children/{id}/activities { activityId }` (no duplication).
+
+## 7. Who plays
+
+Parent and Teacher see «ابدأ» on unfinished plan activities (child page, game card with the game
+icon and «لعبة»). The same engine is used for both roles. Live (2026-10-14) the submit endpoint
+accepts the Parent only; a Teacher submission shows the server's error.
+
+## 8. Mock mode
+
+Mock mode (development only) gives the child «نور» four original game rows whose
+child-facing detail includes the requested `slug`, so the engines can be reviewed end to end. This
+mock field is marked as a requested backend field; production never uses mock data.
+
+## 9. NOVEMBER CLIENT REVISION BATCH — the five real games (2026-11-10)
+
+| Slug             | Name         | Mechanic                                                                   | Skill                   | Levels (easy / medium / hard)                                |
+| ---------------- | ------------ | -------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------ |
+| `memory-pairs`   | لعبة الذاكرة | Flip two cards; matching pairs stay open, others flip back                 | الذاكرة والانتباه       | 2 identical pairs · 4 letter ↔ picture · 6 number ↔ quantity |
+| `sort-and-match` | رتّب وطابق   | Drag a picture to its group, or tap it then tap the group (no drag needed) | التصنيف والمطابقة       | 2 groups · 3 groups · 4 groups                               |
+| `target-catch`   | اصطد الهدف   | Balloons float; tap those that fit the goal; no timer                      | التركيز والتمييز البصري | cat ×3 · letter أ ×5 · even numbers ×7                       |
+| `sequence-train` | قطار الترتيب | Tap cards into wagons in order; tap a wagon to take back; undo / reset     | التسلسل والترتيب        | 1 · 2 · 3 stages                                             |
+| `learning-maze`  | متاهة التعلم | Move the turtle with arrow buttons or keyboard arrows to the right target  | التخطيط وحل المشكلات    | 5×5 · 7×7 · 9×9 (every target reachable, checked by BFS)     |
+
+- **Code:** `src/components/games/real/` — `types.ts`, `content/*` (product content, one file per
+  game), one folder per engine, `registry.ts` (`REAL_GAMES`, `resolveRealGame`,
+  `difficultyForAge`), `RealGameBoard` (slug → engine) and `RealGameSession` (start screen →
+  game → end screen).
+- **Start screen:** picture, name, one-line instruction, difficulty chips (default from the
+  child's age), «ابدأ اللعب». **End screen:** «أحسنت!», «أنهيت اللعبة بنجاح», the session's own
+  figures (e.g. targets caught, mistakes), «العب مرة أخرى», «العودة إلى ملف الطفل». No stars or
+  coins.
+- **Accessibility:** large touch targets (QA at 390 px: no game button under 40 px; the session
+  buttons and maze arrow pad use the 56 px child token; maze cells are not tap targets), `aria-pressed` / text states (never colour only), a
+  tap alternative to every drag, keyboard support (maze arrows, native buttons), no audio, gentle
+  messages for mistakes, `prefers-reduced-motion` stops floating / flipping animations.
+- **Routing:** `PlanActivityPlayerPage` opens a real game for a known real slug (also when the
+  server sends questions), or for a game with neither a usable slug nor questions. Legacy slugs
+  (`letter-hunt`, `number-match`, `memory-sequence`, `focus-challenge`, `spot-it`) keep their
+  engines; unknown slugs with questions keep the visual default.
+- **Persistence:** none — no backend contract (BACKEND_REQUESTS #11). Real games are never
+  submitted and are always replayable. Until the plan response includes `slug` (#9), the live
+  backend cannot route a game to a specific real game; slug-less, question-less games open
+  `memory-pairs`.
+- **Replay of question-based activities:** a completed test or legacy game reopens as practice:
+  played again, never submitted (no 409), the saved result unchanged.
+- **Admin:** «قوالب الألعاب» and «نوع اللعبة» offer only the five real games (visual cards);
+  editing an activity with a legacy slug keeps it as an extra «قالب سابق» card.
