@@ -1,6 +1,4 @@
-# Builds the Vite app and deploys it to GitHub Pages:
-# https://hashimsaffarini.github.io/Early-Step/ (docs/DEPLOYMENT.md).
-# Requires: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+
 name: Deploy to GitHub Pages
 
 on:

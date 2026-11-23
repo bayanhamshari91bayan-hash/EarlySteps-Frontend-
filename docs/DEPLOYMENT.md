@@ -1,13 +1,5 @@
 # Deployment — GitHub Pages
 
-## Repository
-
-<https://github.com/hashimsaffarini/Early-Step>
-
-## Production URL
-
-<https://hashimsaffarini.github.io/Early-Step/>
-
 **Live since 2026-10-15** (repository made public; Pages source set to GitHub Actions; first
 successful deployment from the manual run on `main`). Smoke test on the public URL: `index.html`,
 JS, CSS and favicons served from `/Early-Step/`; a direct `#/specialist/children` link redirects to
@@ -54,18 +46,6 @@ No credentials or tokens are used by the workflow. Live contract tests (`test:li
 run in CI — they need the private demo accounts in `.env.e2e.local`, which never leaves the
 developer's machine.
 
-## GitHub setup (one time)
-
-1. Open <https://github.com/hashimsaffarini/Early-Step>.
-2. **Settings** (top tab bar of the repository).
-3. In the left sidebar, under **Code and automation**, click **Pages**.
-4. Under **Build and deployment → Source**, choose **GitHub Actions** (not "Deploy from a branch").
-5. Open the **Actions** tab → **Deploy to GitHub Pages** → **Run workflow** (branch `main`), or
-   push to `main`. When the run is green, the site is at the production URL above (the URL is also
-   shown on the run summary and on the Pages settings page).
-
-If the deploy job fails with "Get Pages site failed" or a 404 from `configure-pages`, step 4 has
-not been done yet.
 
 ## How the app is built for Pages
 

@@ -563,12 +563,6 @@ the engines can render.
 
 Accepted (2026-10-15)
 
-### Context
-
-The frontend is hosted on GitHub Pages at `https://hashimsaffarini.github.io/Early-Step/`.
-GitHub Pages serves static files from a sub-path and has no SPA rewrites, so a refreshed or shared
-`/Early-Step/parent/dashboard` would return 404.
-
 ### Decision
 
 - Vite `base` is `/Early-Step/` for `vite build` / `vite preview` and `/` for development and tests.

@@ -48,18 +48,6 @@ Backend role values are TBD until confirmed from the API documentation.
 - Child-facing test/game experiences (details TBD).
 - Consuming the backend API; the frontend does not own business data.
 
-## Pending external references
-
-| Reference                             | Status                                                                      |
-| ------------------------------------- | --------------------------------------------------------------------------- |
-| GitHub repository                     | ✅ https://github.com/hashimsaffarini/Early-Step                            |
-| Existing Replit project (design ref.) | ✅ https://replit.com/@Zainmoneer04/Earlysteps (audited: `REPLIT_AUDIT.md`) |
-| API documentation                     | ✅ https://e3mockwfb7.apidog.io/ (mapped: `API_ENDPOINTS.md`)               |
-| Backend base URL                      | TBD                                                                         |
-| Demo accounts (one per role)          | TBD — never committed                                                       |
-| UI screenshots                        | TBD                                                                         |
-| Feature priorities                    | TBD                                                                         |
-| Deployment target                     | TBD                                                                         |
 
 ## Discovery notes (2026-09-28)
 
